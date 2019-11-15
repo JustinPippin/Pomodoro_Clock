@@ -4,7 +4,6 @@ $(function() {
     clock.displaySessionTime();
     clock.displayBreakTime();
     clock.displaySessionCount();
-
     //Event Listeners
     $(".time-session .plus").click(function() {
         clock.changeSessionTime("add");
@@ -12,40 +11,44 @@ $(function() {
     $(".time-session .minus").click(function() {
         clock.changeSessionTime("subtract");
     });
-    $(".time-session .plus").click(function() {
-        clock.changeSessionTime("add");
+    $(".time-break .plus").click(function() {
+        clock.changeBreakTime("add");
     });
     $(".time-break .minus").click(function() {
-        clock.changeSessionTime("subtract");
+        clock.changeBreakTime("subtract");
+    });
+    $(".time-start").click(function() {
+        clock.toggleClock();
+    }); 
+    $(".time-reset").click(function() {
+        clock.reset();
     });
 });
-function Clock() {
-    var startTime = 1500; //Starting value for our timer in seconds
-        currentTime = 1500; //Current value of our timer in seconds
-        seesionTime = 1500; //Length of a session in seconds
-        breakTime = 1500;
-        sessionCount = 0;
-        mode = "Session";
-        active = false; //Keeps track of whether the clock is running or not
-}
-
-        //DISPLAY FUNCTIONS
-
+function Clock () {
+    var startTime = 1500;
+    var currentTime = 1500;
+    var sessionTime = 1500;
+    var breakTime = 300;
+    var sessionCount = 0;
+    var mode = "Session";
+    var active = false;
+    var _this = this;
+    var timer;
+        
+    
     //Function to convert a number of seconds into a formatted time string
     function formatTime(secs) {
         var result = "";
-        let seconds = secs % 60;
-        let minutes = parseInt(secs / 60) % 60;
-        let hours = parseInt(secs / 3600);
-        //Function adds leading zeroes if minutes/seconds are less than 10
+        var seconds = secs % 60;
+        var minutes = parseInt(secs / 60) % 60;
+        var hours = parseInt(secs / 3600);
         function addLeadingZeroes(time) {
             if (time < 10) {
-                return "0" + time;
+                return "0" + time
             } else {
-                return time;
+                return time; 
             }
         }
-        //If we have a value for hours greater than 0, we need to show it on our time output
         if (hours > 0) {
             result += (hours + ":");
         }
@@ -54,53 +57,45 @@ function Clock() {
         //Return the result string
         return result;
     }
-    //Function to display the time remaining on the timer
-    this.displayCurrentTime = function() {
-        $('.main-display').text(formatTime(startTime));
+    this.displayCurrentTime = function () {
+        $('.main-display').text(formatTime(currentTime));
+    if (mode === "Session" && $('.progress-radial').hasClass('Break')) {
+        $('.progress-radial').removeClass('break').addClass('Session');
+    } else if (mode === "Break" && $('.progress-radial').hasClass('Session')) {
+        $('.progress-radial').removeClass('Session').addClass('Break');
     }
 
-    //Function to display the session time
-    this.displaySessionTime = function() {
-        $('.time-session-display').text(parseInt(sessionTime / 60) + " min.");
-    }
+    $('.progress-radial').attr('class', function(index, currentValue) {
+        return currentValue.replace(/(^|\s)step-\S+/g, "step-" + (100 - parseInt((currentTime / startTime) * 100)));
+    })
+console.log($('.progress-radial').attr('class'))
+}
 
-    //Function to display the current time
+    this.displaySessionTime = function () {
+        $(`.time-session-display`).text(parseInt(sessionTime / 60) + "min");
+    }
     this.displayBreakTime = function() {
-        $('.time-break-display').text(parseInt(sessionTime / 60) + " min.");
+        $(`.time-break-display`).text(parseInt(breakTime / 60) + "min");
     }
-
-    //Function to display the session count test
+    //Function to display the session count
     this.displaySessionCount = function() {
-        if (sessionCount === 0) {
-
         //If our session count is 0, we should show the text Pomodoro Clock
-
-            $('.session-count').html("<h2>Pomodoro Clock<h2>")
+        if (sessionCount === 0) {
+            $('.session-count').html("<h1>Pomodoro Clock</h1>");
         } else if (mode === "Session") {
-
-        //If our session count is greater than 0 and we're in a session, we should show which session we're in
-
-        $('.session-count').html("<h2>Session " + sessionCount + "</h2>");
-
+            $('.session-count').html("<h1>Session " + sessionCount + "</h1>");
         } else if (mode === "Break") {
-
-        //If we're in a break, we should show the text Break
-
-        $('.session-count').html("<h2>Break</h2>");
-
+            $('.session-count').html("<h1>Break</h1>")
         }
     }
-
     //CHANGE TIME FUNCTIONS
-
     //Function to add or subtract 60 seconds from the session time whenever the plus or minus buttons are interacted with
-    this.changeSessionTime = function() {
+    this.changeSessionTime = function(command) {
         if (!active) {
+            this.reset();
             if (command === "add") {
-                //Add a minute to our session time
                 sessionTime += 60;
             } else if (sessionTime > 60) {
-                //If session time is greater than 1 minute, subtract a minute from it
                 sessionTime -= 60;
             }
             currentTime = sessionTime;
@@ -109,15 +104,73 @@ function Clock() {
             this.displayCurrentTime();
         }
     }
-
-    //Function to add or remove 60 seconds from the break time when the plus or minus buttons are interacted with
     this.changeBreakTime = function(command) {
         if (!active) {
+            this.reset();
             if (command === "add") {
-                breaktime += 60;
-             } else if (breakTime > 60)  {
-                 breakTime -= 60;
-             }
-             this.displayBreakTime();
+                breakTime += 60;
+            } else if (breakTime > 60) {
+                breakTime -= 60;
+            }
+            this.displayBreakTime();
         }
     }
+    this.toggleClock = function() {
+        if (!active) {
+            active = true;
+            if (sessionCount === 0) {
+                sessionCount = 1;
+                this.displaySessionCount();
+            }
+            $(".time-start").text("Pause");
+            timer = setInterval(function() {
+                _this.stepDown();
+            }, 1000);
+        } else {
+            $('.time-start').text("Start");
+            active = false;
+            clearInterval(timer);
+        }
+    }
+    this.stepDown = function() {
+        if (currentTime > 0) {
+            currentTime--;
+            this.displayCurrentTime();
+            if (currentTime === 0) {
+                if (mode === "Session") {
+                    mode = "Break";
+                    currentTime = breakTime;
+                    startTime = breakTime;
+                    this.displaySessionCount();
+                } else {
+                    mode ="Session";
+                    currentTime = sessionTime;
+                    startTime = sessionTime;
+                    startTime = sessionTime;
+                    sessionCount++;
+                    this.displaySessionCount();
+                }
+            }
+        }
+    }
+    
+    //Function to reset the timer
+    this.reset = function() {
+        //Clear the timer interval so the clock stops counting down if it's active
+        clearInterval(timer);
+        //Set active to false, make sure it's not counting
+        active = false;
+        //Reset our mode to session
+        mode = "Session";
+        //Reset the currentTime to the sessionTime
+        currentTime = sessionTime;
+        //Reset the session count
+        sessionCount = 0;
+        //Make sure the text for the start/pause button is set to start
+        $('.time-start').text('Start');
+        //Display the correct currentTime, sessionTime, and sessionCount
+        this.displayCurrentTime();
+        this.displaySessionTime();
+        this.displaySessionCount();
+    }
+}
